@@ -28,7 +28,7 @@ document.getElementById("fetchBtn").addEventListener("click", () => {
   if (!url) return alert("Please enter a URL!");
 
   // Replace with your Wispbyte server domain and port
-  const proxyUrl = `https://YOUR_WISBYTE_DOMAIN/go?url=${encodeURIComponent(url)}`;
+  const proxyUrl = `https://proxy.wispbyte.com/go?url=${encodeURIComponent(url)}`;
   document.getElementById("siteFrame").src = proxyUrl;
 });
 </script>
