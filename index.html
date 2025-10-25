@@ -1,54 +1,93 @@
-const express = require('express');
-const axios = require('axios');
-const crypto = require('crypto');
-const helmet = require('helmet');
-const cors = require('cors');
-const rateLimit = require('express-rate-limit');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secure Proxy Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0e1117;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+      font-size: 16px;
+    }
+    input {
+      width: 60%;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    pre {
+      text-align: left;
+      background: #1a1f29;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      max-width: 90%;
+      margin: 20px auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔒 Secure Proxy Viewer</h1>
+  <p>Enter a website URL to fetch and decrypt its content securely.</p>
 
-const app = express();
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
+  <input id="urlInput" type="text" placeholder="https://example.com">
+  <button id="fetchBtn">Fetch</button>
 
-// Rate limit
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+  <pre id="output">Output will appear here...</pre>
 
-// AES helper
-function encrypt(text, key, iv) {
-  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-  let encrypted = cipher.update(text, 'utf8', 'base64');
-  encrypted += cipher.final('base64');
-  return encrypted;
-}
+  <script>
+    async function decryptAES(base64Data, base64Key, base64Iv) {
+      const key = await crypto.subtle.importKey(
+        "raw",
+        Uint8Array.from(atob(base64Key), c => c.charCodeAt(0)),
+        { name: "AES-CBC" },
+        false,
+        ["decrypt"]
+      );
+      const iv = Uint8Array.from(atob(base64Iv), c => c.charCodeAt(0));
+      const data = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
-// Proxy route
-app.get('/go', async (req, res) => {
-  const url = req.query.url;
-  if (!url) return res.status(400).send('Missing ?url=');
+      const decrypted = await crypto.subtle.decrypt({ name: "AES-CBC", iv }, key, data);
+      const decoder = new TextDecoder();
+      return decoder.decode(decrypted);
+    }
 
-  try {
-    const response = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
+    document.getElementById("fetchBtn").addEventListener("click", async () => {
+      const url = document.getElementById("urlInput").value.trim();
+      const output = document.getElementById("output");
+      if (!url) return alert("Please enter a URL first!");
+
+      output.textContent = "Fetching and decrypting...";
+
+      try {
+        const res = await fetch(`https://localhost:3000/go?url=${encodeURIComponent(url)}`);
+        const json = await res.json();
+
+        const decrypted = await decryptAES(json.data, json.key, json.iv);
+        output.textContent = decrypted;
+      } catch (err) {
+        console.error(err);
+        output.textContent = "⚠️ Error fetching or decrypting data.";
+      }
     });
-
-    const key = crypto.randomBytes(32);
-    const iv = crypto.randomBytes(16);
-    const encryptedBody = encrypt(response.data, key, iv);
-
-    res.json({
-      key: key.toString('base64'),
-      iv: iv.toString('base64'),
-      data: encryptedBody
-    });
-  } catch (err) {
-    console.error('Error fetching:', err.message);
-    res.status(500).send('Error fetching site.');
-  }
-});
-
-const port = process.env.PORT || 3000;
-
-// ✅ Use HTTP instead of HTTPS (no SSL errors)
-app.listen(port, () => {
-  console.log(`Secure proxy active on http://localhost:${port}`);
-});
+  </script>
+</body>
+</html>
