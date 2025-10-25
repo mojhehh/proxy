@@ -1,93 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Secure Proxy Viewer</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0e1117;
-      color: #fff;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-    }
-    input, button {
-      padding: 10px;
-      margin: 5px;
-      border-radius: 6px;
-      border: none;
-      outline: none;
-      font-size: 16px;
-    }
-    input {
-      width: 60%;
-    }
-    button {
-      background: #4CAF50;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #45a049;
-    }
-    pre {
-      text-align: left;
-      background: #1a1f29;
-      padding: 15px;
-      border-radius: 8px;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      max-width: 90%;
-      margin: 20px auto;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interactive Proxy Viewer</title>
+<style>
+body { font-family: Arial; background: #0e1117; color: #fff; text-align: center; padding: 20px; }
+input, button { padding: 10px; margin: 5px; border-radius: 6px; font-size: 16px; }
+input { width: 60%; }
+button { background: #4CAF50; color: white; cursor: pointer; }
+button:hover { background: #45a049; }
+iframe { width: 90%; height: 80vh; border: none; margin-top: 20px; border-radius: 8px; }
+</style>
 </head>
 <body>
-  <h1>🔒 Secure Proxy Viewer</h1>
-  <p>Enter a website URL to fetch and decrypt its content securely.</p>
+<h1>🔒 Interactive Proxy Viewer</h1>
+<p>Type a website URL and browse it through the proxy.</p>
 
-  <input id="urlInput" type="text" placeholder="https://example.com">
-  <button id="fetchBtn">Fetch</button>
+<input id="urlInput" type="text" placeholder="https://example.com">
+<button id="fetchBtn">Go</button>
 
-  <pre id="output">Output will appear here...</pre>
+<iframe id="siteFrame"></iframe>
 
-  <script>
-    async function decryptAES(base64Data, base64Key, base64Iv) {
-      const key = await crypto.subtle.importKey(
-        "raw",
-        Uint8Array.from(atob(base64Key), c => c.charCodeAt(0)),
-        { name: "AES-CBC" },
-        false,
-        ["decrypt"]
-      );
-      const iv = Uint8Array.from(atob(base64Iv), c => c.charCodeAt(0));
-      const data = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+<script>
+document.getElementById("fetchBtn").addEventListener("click", () => {
+  const url = document.getElementById("urlInput").value.trim();
+  if (!url) return alert("Please enter a URL!");
 
-      const decrypted = await crypto.subtle.decrypt({ name: "AES-CBC", iv }, key, data);
-      const decoder = new TextDecoder();
-      return decoder.decode(decrypted);
-    }
-
-    document.getElementById("fetchBtn").addEventListener("click", async () => {
-      const url = document.getElementById("urlInput").value.trim();
-      const output = document.getElementById("output");
-      if (!url) return alert("Please enter a URL first!");
-
-      output.textContent = "Fetching and decrypting...";
-
-      try {
-        const res = await fetch(`https://localhost:3000/go?url=${encodeURIComponent(url)}`);
-        const json = await res.json();
-
-        const decrypted = await decryptAES(json.data, json.key, json.iv);
-        output.textContent = decrypted;
-      } catch (err) {
-        console.error(err);
-        output.textContent = "⚠️ Error fetching or decrypting data.";
-      }
-    });
-  </script>
+  // Replace with your Wispbyte server domain and port
+  const proxyUrl = `https://YOUR_WISBYTE_DOMAIN/go?url=${encodeURIComponent(url)}`;
+  document.getElementById("siteFrame").src = proxyUrl;
+});
+</script>
 </body>
 </html>
