@@ -4,41 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Secure Proxy</title>
-<style>
-body { font-family: sans-serif; margin: 2rem; }
-input, button { padding: 0.5rem; margin: 0.25rem; width: 100%; }
-iframe { width: 100%; height: 80vh; border: 1px solid #ccc; margin-top: 1rem; }
-</style>
 </head>
 <body>
-<h1>Secure Proxy Frontend</h1>
-<input id="url" type="text" placeholder="Enter target URL" />
-<select id="mode">
-  <option value="decrypt">Decrypted (Viewable)</option>
-  <option value="encrypted">Encrypted (Custom)</option>
-</select>
-<button onclick="loadProxy()">Load</button>
-<iframe id="proxyFrame"></iframe>
+<h1>Secure Proxy</h1>
+<input id="url" type="text" placeholder="Enter target URL">
+<button onclick="loadProxy()">Load Website</button>
+<iframe id="proxyFrame" style="width:100%; height:80vh;"></iframe>
 
 <script>
 async function loadProxy() {
   const url = document.getElementById('url').value;
-  const mode = document.getElementById('mode').value;
   if (!url) return alert('Enter a URL');
 
-  // Worker URL
-  const workerURL = `https://hi.sebmojheh.workers.dev/?url=${encodeURIComponent(url)}&mode=${mode}`;
+  const workerURL = `https://hi.sebmojheh.workers.dev/?url=${encodeURIComponent(url)}`;
 
-  if (mode === 'decrypt') {
-    // For normal HTML: show inside iframe
-    document.getElementById('proxyFrame').src = workerURL;
-  } else {
-    // For encrypted mode: fetch content
-    const response = await fetch(workerURL);
-    const encryptedData = await response.text();
-    console.log('Encrypted content:', encryptedData);
-    alert('Encrypted content fetched! Check console.');
-  }
+  // Fetch encrypted content
+  const response = await fetch(workerURL);
+  const encryptedData = await response.text();
+
+  console.log('Encrypted content:', encryptedData);
+  alert('Encrypted content fetched! Check console.');
+
+  // For decrypted mode (optional): just display original HTML
+  // document.getElementById('proxyFrame').src = workerURL;
 }
 </script>
 </body>
