@@ -1,97 +1,45 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SecureProxy Browser</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secure Proxy</title>
 <style>
-body{font-family:Inter,system-ui,sans-serif;margin:0;padding:0;background:#0b1020;color:#e6eef6}
-#navbar{display:flex;padding:10px;background:#0f1724;align-items:center;gap:6px}
-#urlInput{flex:1;padding:6px;border-radius:6px;border:none;background:#071425;color:#fff;outline:none}
-button{padding:6px 10px;border:none;border-radius:6px;background:#7de3b2;color:#042018;font-weight:600;cursor:pointer}
-#status{font-size:13px;margin-left:8px;color:#9aa4b2}
-#browser{display:block;width:100%;height:calc(100vh - 46px);overflow:auto;background:#07172b;padding:12px;box-sizing:border-box}
-a{color:#7de3b2;text-decoration:underline;cursor:pointer}
+body { font-family: sans-serif; margin: 2rem; }
+input, button { padding: 0.5rem; margin: 0.25rem; width: 100%; }
+iframe { width: 100%; height: 80vh; border: 1px solid #ccc; margin-top: 1rem; }
 </style>
 </head>
 <body>
-<div id="navbar">
-<input id="urlInput" type="url" placeholder="https://example.com" value="https://example.com">
-<button id="goBtn">Go</button>
-<div id="status">Idle</div>
-</div>
-<div id="browser">Loading...</div>
+<h1>Secure Proxy Frontend</h1>
+<input id="url" type="text" placeholder="Enter target URL" />
+<select id="mode">
+  <option value="decrypt">Decrypted (Viewable)</option>
+  <option value="encrypted">Encrypted (Custom)</option>
+</select>
+<button onclick="loadProxy()">Load</button>
+<iframe id="proxyFrame"></iframe>
 
-<script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
 <script>
-const PROXY_URL = "http://217.154.239.23:14299"; // your Wispbyte proxy
-const MASTER_KEY_B64 = ""; // optional if decrypting AES-GCM envelope
-let sessionId = Math.random().toString(36).slice(2);
+async function loadProxy() {
+  const url = document.getElementById('url').value;
+  const mode = document.getElementById('mode').value;
+  if (!url) return alert('Enter a URL');
 
-function b64ToBytes(b){return Uint8Array.from(atob(b),c=>c.charCodeAt(0));}
-function bytesToStr(u8){return new TextDecoder().decode(u8);}
-function concat(...arrays){let total=arrays.reduce((s,a)=>s+(a?a.length:0),0);let out=new Uint8Array(total);let offset=0;for(const a of arrays){if(!a)continue;out.set(a,offset);offset+=a.length;}return out;}
-async function decryptEnvelope(obj, masterKeyB64){
-    if(!obj.wrapped_key||!obj.wrapped_iv||!obj.wrapped_tag) throw new Error("Envelope missing");
-    const outerCt=b64ToBytes(obj.wrapped_key), outerIv=b64ToBytes(obj.wrapped_iv), outerTag=b64ToBytes(obj.wrapped_tag);
-    const masterBytes=b64ToBytes(masterKeyB64);
-    const masterKey = await crypto.subtle.importKey("raw", masterBytes.buffer, "AES-GCM", false, ["decrypt"]);
-    const envelopeBuf = await crypto.subtle.decrypt({name:"AES-GCM",iv:outerIv,tagLength:128},masterKey,concat(outerCt,outerTag).buffer);
-    return JSON.parse(bytesToStr(new Uint8Array(envelopeBuf)));
+  // Worker URL
+  const workerURL = `https://hi.sebmojheh.workers.dev/?url=${encodeURIComponent(url)}&mode=${mode}`;
+
+  if (mode === 'decrypt') {
+    // For normal HTML: show inside iframe
+    document.getElementById('proxyFrame').src = workerURL;
+  } else {
+    // For encrypted mode: fetch content
+    const response = await fetch(workerURL);
+    const encryptedData = await response.text();
+    console.log('Encrypted content:', encryptedData);
+    alert('Encrypted content fetched! Check console.');
+  }
 }
-async function decryptPage(innerCipherB64,aesKeyB64,aesIvB64,gzipped){
-    const cipher=b64ToBytes(innerCipherB64), key=b64ToBytes(aesKeyB64), iv=b64ToBytes(aesIvB64);
-    const aesKey = await crypto.subtle.importKey("raw", key.buffer,"AES-CBC",false,["decrypt"]);
-    let plainBuf = await crypto.subtle.decrypt({name:"AES-CBC",iv},aesKey,cipher.buffer);
-    let plain = new Uint8Array(plainBuf);
-    if(gzipped){try{plain = pako.ungzip(plain);}catch{}}
-    return bytesToStr(plain);
-}
-const browserDiv=document.getElementById("browser");
-const statusDiv=document.getElementById("status");
-
-async function loadUrl(url){
-    statusDiv.textContent="Loading…";
-    try{
-        const resp = await fetch(PROXY_URL+"/go?url="+encodeURIComponent(url)+"&sid="+sessionId);
-        if(!resp.ok) throw new Error("HTTP "+resp.status);
-        const j = await resp.json();
-
-        let plainText;
-        if(MASTER_KEY_B64 && j.wrapped_key){
-            const env = await decryptEnvelope(j, MASTER_KEY_B64);
-            plainText = await decryptPage(j.data, env.aesKey, env.aesIv, j.gzipped);
-        } else {
-            // fallback: try decrypt with inner AES from JSON directly
-            if(j.data && j.aesKey && j.aesIv) plainText = await decryptPage(j.data,j.aesKey,j.aesIv,j.gzipped);
-            else plainText = "Encrypted content. Provide MASTER_KEY_B64.";
-        }
-        browserDiv.innerHTML = plainText;
-        makeLinksWork();
-        statusDiv.textContent="Loaded "+url;
-    }catch(e){browserDiv.textContent=e.message; statusDiv.textContent="Error";}
-}
-
-function makeLinksWork(){
-    browserDiv.querySelectorAll("a").forEach(a=>{
-        const href = a.getAttribute("href");
-        if(href && !href.startsWith("#") && !href.startsWith("javascript:")){
-            a.addEventListener("click",e=>{
-                e.preventDefault();
-                let nextUrl;
-                try{nextUrl = new URL(href,browserDiv.baseURI).toString();}catch{return;}
-                document.getElementById("urlInput").value = nextUrl;
-                loadUrl(nextUrl);
-            });
-        }
-    });
-}
-
-document.getElementById("goBtn").onclick = ()=>{loadUrl(document.getElementById("urlInput").value);};
-document.getElementById("urlInput").addEventListener("keyup",e=>{if(e.key==="Enter") loadUrl(document.getElementById("urlInput").value);});
-
-loadUrl(document.getElementById("urlInput").value);
 </script>
 </body>
 </html>
