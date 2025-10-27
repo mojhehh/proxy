@@ -8,60 +8,26 @@
 <body>
 <h1>Secure Proxy</h1>
 <input id="url" type="text" placeholder="Enter target URL">
-<input id="token" type="text" placeholder="Enter secret token">
 <button onclick="loadProxy()">Load Website</button>
 <iframe id="proxyFrame" style="width:100%; height:80vh;"></iframe>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 <script>
-const AES_KEY_1 = hexToUint8Array('3f1d2a7e9c8b4f6a1b2c3d4e5f6071829a1b2c3d4e5f6071829a1b2c3d4e5f60');
-const AES_KEY_2 = hexToUint8Array('a1b2c3d4e5f60718293f1d2a7e9c8b4f6a1b2c3d4e5f6071829a1b2c3d4e5f60');
-const AES_KEY_3 = hexToUint8Array('9a1b2c3d4e5f60718293f1d2a7e9c8b4f6a1b2c3d4e5f6071829a1b2c3d4e5f60');
-
-function hexToUint8Array(hex) {
-    if (hex.length % 2 !== 0) throw new Error('Invalid hex string');
-    const arr = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < arr.length; i++) arr[i] = parseInt(hex.substr(i * 2, 2), 16);
-    return arr;
-}
-
-async function decryptAESGCM(base64Data, key) {
-    const data = Uint8Array.from(atob(base64Data), c=>c.charCodeAt(0));
-    const iv = data.slice(0,12);
-    const tag = data.slice(12,28);
-    const encrypted = data.slice(28);
-    const cryptoKey = await crypto.subtle.importKey('raw', key, 'AES-GCM', true, ['decrypt']);
-    const decrypted = await crypto.subtle.decrypt({name:'AES-GCM', iv, tagLength:128}, cryptoKey, concatBuffers(encrypted, tag));
-    return new Uint8Array(decrypted);
-}
-
-function concatBuffers(a,b){const c=new Uint8Array(a.length+b.length);c.set(a,0);c.set(b,a.length);return c;}
-
-async function gunzip(uint8Array){return pako.ungzip(uint8Array,{to:'string'});}
-
-async function decryptTripleAES(data){
-    let layer3 = await decryptAESGCM(data, AES_KEY_3);
-    let layer2 = await decryptAESGCM(new TextDecoder().decode(layer3), AES_KEY_2);
-    let layer1 = await decryptAESGCM(new TextDecoder().decode(layer2), AES_KEY_1);
-    return await gunzip(layer1);
-}
-
 async function loadProxy(){
     const url = document.getElementById('url').value;
-    const token = document.getElementById('token').value;
     if(!url) return alert('Enter a URL');
-    if(!token) return alert('Enter secret token');
 
-    const workerURL = `https://hi.sebmojheh.workers.dev/?url=${encodeURIComponent(url)}&token=${encodeURIComponent(token)}`;
+    // Fetch decrypted HTML directly from backend
+    const proxyURL = `http://localhost:14456/api/decrypted?url=${encodeURIComponent(url)}`;
+
     try{
-        const response = await fetch(workerURL);
+        const response = await fetch(proxyURL);
         if(!response.ok) throw new Error('Fetch failed: '+response.status);
-        const encryptedData = await response.text();
-        const decryptedHTML = await decryptTripleAES(encryptedData);
-        document.getElementById('proxyFrame').srcdoc = decryptedHTML;
+
+        const html = await response.text();
+        document.getElementById('proxyFrame').srcdoc = html;
     }catch(err){
         console.error(err);
-        alert('Error fetching or decrypting proxy: '+err.message);
+        alert('Error loading proxy: '+err.message);
     }
 }
 </script>
