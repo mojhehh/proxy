@@ -7,28 +7,19 @@
 </head>
 <body>
 <h1>Secure Proxy</h1>
-<input id="url" type="text" placeholder="Enter target URL">
-<button onclick="loadProxy()">Load Website</button>
-<iframe id="proxyFrame" style="width:100%; height:80vh;"></iframe>
+<input id="url" type="text" placeholder="Enter URL">
+<button onclick="loadProxy()">Load</button>
+<iframe id="proxyFrame" style="width:100%;height:80vh;"></iframe>
 
 <script>
-async function loadProxy(){
+function loadProxy(){
     const url = document.getElementById('url').value;
     if(!url) return alert('Enter a URL');
 
-    // Fetch decrypted HTML directly from backend
-    const proxyURL = `http://localhost:14456/api/decrypted?url=${encodeURIComponent(url)}`;
+    const workerURL = `https://hi.sebmojheh.workers.dev/?url=${encodeURIComponent(url)}`;
 
-    try{
-        const response = await fetch(proxyURL);
-        if(!response.ok) throw new Error('Fetch failed: '+response.status);
-
-        const html = await response.text();
-        document.getElementById('proxyFrame').srcdoc = html;
-    }catch(err){
-        console.error(err);
-        alert('Error loading proxy: '+err.message);
-    }
+    // Iframe loads decrypted HTML from Worker
+    document.getElementById('proxyFrame').src = workerURL;
 }
 </script>
 </body>
