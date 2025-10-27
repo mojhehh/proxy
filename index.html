@@ -1,19 +1,24 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Public Proxy</title></head>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Public Proxy</title>
+</head>
 <body>
-  <h1>Public Proxy</h1>
-  <input id="url" placeholder="Enter URL" style="width:70%">
-  <button onclick="openProxy()">Open</button>
-  <iframe id="proxyFrame" style="width:100%; height:80vh;"></iframe>
+<h1>Public Proxy</h1>
+<input id="url" type="text" placeholder="Enter URL" style="width:70%">
+<button onclick="loadProxy()">Load</button>
+<iframe id="proxyFrame" style="width:100%;height:80vh;"></iframe>
 
-  <script>
-    function openProxy(){
-      const url = document.getElementById('url').value;
-      if(!url) return alert('Enter a URL');
-      const workerURL = `https://hi.sebmojheh.workers.dev/?url=${encodeURIComponent(url)}`;
-      document.getElementById('proxyFrame').src = workerURL;
-    }
-  </script>
+<script>
+function loadProxy(){
+    const url = document.getElementById('url').value;
+    if(!url) return alert('Enter a URL');
+
+    const workerURL = `https://hi.sebmojheh.workers.dev/?url=${encodeURIComponent(url)}`;
+    document.getElementById('proxyFrame').src = workerURL;
+}
+</script>
 </body>
 </html>
